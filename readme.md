@@ -101,7 +101,7 @@ If all entries are correct, a success popup appears
 
 
 ## 📸 Screenshots
-![Home](screenshots/home.png)
+![Home](screenshots/Home.png)
 ![Gameplay](screenshots/gameplay.png)
 ![Success](screenshots/success.png)
 ![Failure](screenshots/failure.png)
