@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sudoku AI</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="container">
+    <h1>🧩 Sudoku AI</h1>
+    <p class="subtitle">Solve it before the AI does!</p>
+
+    <div class="difficulty" id="difficultyPanel">
+        <button onclick="startGame('easy')">Easy</button>
+        <button onclick="startGame('medium')">Medium</button>
+        <button onclick="startGame('hard')">Hard</button>
+    </div>
+
+    <div class="grid-wrapper">
+        <div id="grid" class="grid"></div>
+        <p id="feedback" class="feedback"></p>
+    </div>
+
+    <div class="buttons" id="actionButtons" style="display:none;">
+        <button class="check" onclick="checkSolution()">Check</button>
+        <button class="solve" onclick="solveSudoku()">Solve</button>
+        <button class="clear" onclick="resetGrid()">Reset</button>
+    </div>
+</div>
+
+<script>
+let original = [];
+let solution = null;
+
+function startGame(level) {
+    fetch("/get_puzzle", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ level })
+    })
+    .then(res => res.json())
+    .then(board => {
+        original = board;
+        draw(board);
+
+        document.getElementById("difficultyPanel").style.display = "none";
+        document.getElementById("actionButtons").style.display = "flex";
+
+        const boardCopy = JSON.parse(JSON.stringify(board));
+
+        fetch("/solve", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ board: boardCopy })
+        })
+        .then(res => res.json())
+        .then(sol => {
+            solution = sol;
+        });
+    });
+}
+
+function draw(board) {
+    const grid = document.getElementById("grid");
+    grid.innerHTML = "";
+    grid.style.gridTemplateColumns = "repeat(9, 1fr)";
+
+    board.forEach((row, r) => {
+        row.forEach((v, c) => {
+            const input = document.createElement("input");
+            input.type = "text";
+            input.maxLength = 1;
+            input.inputMode = "numeric";
+
+            if (v !== 0) {
+                input.value = v;
+                input.disabled = true;
+                input.classList.add("fixed");
+            } else {
+                input.oninput = () => {
+                    input.value = input.value.replace(/[^1-9]/g, "");
+                    input.classList.remove("wrong", "correct");
+                };
+            }
+
+            if (c % 3 === 0) input.classList.add("border-left");
+            if (r % 3 === 0) input.classList.add("border-top");
+            if (c === 8) input.classList.add("border-right");
+            if (r === 8) input.classList.add("border-bottom");
+
+            grid.appendChild(input);
+        });
+    });
+}
+
+function checkSolution() {
+    if (!solution) return;
+
+    const cells = document.querySelectorAll(".grid input");
+    let i = 0;
+    let hasError = false;
+
+    document.getElementById("feedback").textContent = "";
+
+    for (let r = 0; r < 9; r++) {
+        for (let c = 0; c < 9; c++) {
+            const cell = cells[i];
+            const val = parseInt(cell.value);
+
+            cell.classList.remove("wrong", "correct");
+
+            if (!cell.disabled && val) {
+                if (val === solution[r][c]) {
+                    cell.classList.add("correct");
+                } else {
+                    cell.classList.add("wrong");
+                    hasError = true;
+                }
+            }
+            i++;
+        }
+    }
+
+    if (hasError) {
+        document.getElementById("feedback").textContent =
+            "🔴 Red cells indicate incorrect entries. Please correct them.";
+    } else {
+        document.getElementById("successModal").style.display = "flex";
+    }
+}
+
+function solveSudoku() {
+    fetch("/solve", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ board: getBoard() })
+    })
+    .then(res => res.json())
+    .then(draw);
+}
+
+function resetGrid() {
+    draw(original);
+}
+
+function closeModal() {
+    document.getElementById("successModal").style.display = "none";
+}
+
+function getBoard() {
+    const cells = document.querySelectorAll(".grid input");
+    let board = [], i = 0;
+
+    for (let r = 0; r < 9; r++) {
+        let row = [];
+        for (let c = 0; c < 9; c++) {
+            row.push(parseInt(cells[i].value) || 0);
+            i++;
+        }
+        board.push(row);
+    }
+    return board;
+}
+</script>
+
+<div id="successModal" class="modal">
+    <div class="modal-content">
+        <h2>🎉 Congratulations!</h2>
+        <p>You solved the Sudoku correctly.</p>
+        <button onclick="closeModal()">OK</button>
+    </div>
+</div>
+
+</body>
+</html>
